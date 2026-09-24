@@ -1,0 +1,22 @@
+name: publish
+
+on:
+  push:
+    branches: [main]
+    paths: ['public/index.html']
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update spark.co.day
+        env:
+          CO_KEY: ${{ secrets.SPARK_CO_KEY }}
+        run: |
+          jq -Rs '{content: .}' public/index.html > body.json
+          code=$(curl -s -o out.json -w '%{http_code}' -X PUT https://spark.co.day/graph/cards/home \
+            -H "X-Admin-Key: $CO_KEY" -H 'Content-Type: application/json' --data @body.json)
+          echo "status $code"
+          test "$code" = "200"

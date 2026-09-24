@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spark - SaaS Metrics Calculator</title>
+  <meta name="description" content="Spark is a SaaS metrics calculator. Calculate MRR, ARR, churn, LTV, CAC payback, NRR and runway from your numbers.">
+  <style>
+    :root {
+      --bg: #fffaf5; --fg: #1f1a17; --accent: #f25c05; --accent-light: #ffb27a;
+      --card-bg: #ffffff; --muted: #6b625c; --border: #f0e2d6;
+      --success: #0f9d6b; --danger: #d63031; --warning: #f5a623;
+      --input-bg: #fff7f0;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; }
+
+    .session-banner { background: var(--fg); color: #fff; text-align: center; padding: 0.55rem 1rem; font-size: 0.9rem; }
+    .session-banner a { color: var(--accent-light); font-weight: 700; text-decoration: none; }
+    .session-banner a:hover { text-decoration: underline; }
+
+    .nav { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; max-width: 1200px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+    .nav-brand { font-weight: 800; font-size: 1.4rem; color: var(--accent); text-decoration: none; letter-spacing: -0.5px; }
+    .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+    .nav-link { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+    .nav-cta { background: var(--accent); color: white; padding: 0.5rem 1.2rem; border-radius: 999px; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+
+    .hero { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: center; }
+    .hero h1 { font-size: 2.4rem; font-weight: 800; line-height: 1.15; margin-bottom: 0.75rem; letter-spacing: -1px; }
+    .hero p { color: var(--muted); font-size: 1.05rem; }
+    .hero img { width: 100%; height: 220px; object-fit: cover; border-radius: 16px; border: 1px solid var(--border); background: var(--input-bg); }
+
+    .calculator { max-width: 1100px; margin: 2rem auto; padding: 0 2rem; display: grid; grid-template-columns: 380px 1fr; gap: 2rem; }
+
+    .input-panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 2rem; width: 380px; }
+    .input-panel h2 { font-size: 1.1rem; margin-bottom: 1.5rem; color: var(--accent); }
+
+    .input-group { margin-bottom: 1.2rem; }
+    .input-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .input-row { display: flex; gap: 0.5rem; align-items: center; }
+    .input-prefix { font-size: 0.9rem; color: var(--muted); font-weight: 600; min-width: 18px; }
+    .input-suffix { font-size: 0.85rem; color: var(--muted); }
+    input[type="number"], input[type="text"] {
+      width: 100%; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 0.95rem; background: var(--input-bg); color: var(--fg);
+      transition: border-color 0.2s;
+    }
+    input:focus { outline: none; border-color: var(--accent); }
+    .input-slider { width: 100%; margin-top: 0.3rem; accent-color: var(--accent); }
+
+    .section-divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+
+    .preset-buttons { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .preset-btn { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 999px; background: var(--input-bg); cursor: pointer; font-size: 0.8rem; color: var(--fg); transition: all 0.2s; }
+    .preset-btn:hover, .preset-btn.active { border-color: var(--accent); background: var(--accent); color: white; }
+
+    .actions { display: flex; flex-direction: column; gap: 0.6rem; }
+    .btn { padding: 0.7rem 1rem; border-radius: 10px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+    .btn.secondary { background: #fff; color: var(--accent); }
+    .save-status { font-size: 0.8rem; color: var(--success); min-height: 1.2em; }
+    .share-link { font-size: 0.8rem; word-break: break-all; color: var(--muted); }
+
+    .shared-banner { max-width: 1100px; margin: 1rem auto 0; padding: 0.8rem 1.2rem; background: #fff1e6; border: 1px solid var(--accent-light); border-radius: 10px; display: none; }
+
+    .results-panel { display: flex; flex-direction: column; gap: 1.5rem; }
+
+    .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .metric-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; }
+    .metric-card .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.3rem; }
+    .metric-card .value { font-size: 1.8rem; font-weight: 800; }
+    .metric-card .subtext { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .metric-card .value.good { color: var(--success); }
+    .metric-card .value.warning { color: #e17055; }
+    .metric-card .value.danger { color: var(--danger); }
+
+    .chart-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .chart-card h3 { font-size: 0.95rem; margin-bottom: 1rem; }
+    .chart-container { position: relative; height: 200px; }
+    .chart-bar-group { display: flex; align-items: flex-end; justify-content: space-around; height: 100%; padding-top: 1rem; }
+    .chart-bar-wrapper { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; flex: 1; }
+    .chart-bar { width: 60%; border-radius: 4px 4px 0 0; transition: height 0.5s ease; min-height: 2px; position: relative; }
+    .chart-bar.revenue { background: var(--accent); }
+    .chart-bar.cost { background: var(--fg); opacity: 0.35; }
+    .chart-bar-label { font-size: 0.7rem; color: var(--muted); }
+    .chart-bar-value { font-size: 0.65rem; color: var(--fg); font-weight: 600; }
+
+    .health-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .health-card h3 { font-size: 0.95rem; margin-bottom: 1rem; }
+    .health-item { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+    .health-item:last-child { border-bottom: none; }
+    .health-item .check-label { font-size: 0.9rem; }
+    .health-item .check-status { font-size: 0.85rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 4px; }
+    .status-good { background: #e6f7ef; color: #0b7a53; }
+    .status-warning { background: #fff3e0; color: #e65100; }
+    .status-danger { background: #fde8e8; color: #c62828; }
+
+    .cta-card { background: linear-gradient(135deg, var(--accent) 0%, #c2185b 100%); border-radius: 12px; padding: 2rem; color: white; text-align: center; }
+    .cta-card h3 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+    .cta-card p { opacity: 0.9; font-size: 0.95rem; margin-bottom: 1.2rem; }
+    .cta-card a { display: inline-block; background: white; color: var(--accent); padding: 0.7rem 1.5rem; border-radius: 999px; text-decoration: none; font-weight: 700; }
+
+    footer { max-width: 1100px; margin: 3rem auto 0; padding: 1.5rem 2rem 3rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <div class="session-banner">
+    <a href="https://co.day/g/spark">Join the Spark session &rarr; co.day/g/spark</a>
+  </div>
+
+  <nav class="nav">
+    <a href="#" class="nav-brand">&#9889; Spark</a>
+    <div class="nav-links">
+      <a href="#calculator" class="nav-link">Calculator</a>
+      <a href="https://spark-app-7f3a-preview.lovable.app" class="nav-cta">Start free trial</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div>
+      <h1>SaaS Metrics Calculator</h1>
+      <p>Calculate MRR, ARR, ARPU, churn, LTV, CAC, CAC payback, NRR, quick ratio and runway in seconds.</p>
+    </div>
+    <img src="http://picsum.photos/seed/spark-metrics/1200/440" alt="Spark dashboard">
+  </section>
+
+  <div class="shared-banner" id="sharedBanner"></div>
+
+  <div class="calculator" id="calculator">
+    <div class="input-panel">
+      <h2>Your Numbers</h2>
+
+      <div class="preset-buttons">
+        <button class="preset-btn" onclick="loadPreset('early')">Early Stage</button>
+        <button class="preset-btn" onclick="loadPreset('growing')">Growing</button>
+        <button class="preset-btn" onclick="loadPreset('scaling')">Scaling</button>
+        <button class="preset-btn" onclick="loadPreset('clear')">Clear All</button>
+      </div>
+
+      <div class="input-group">
+        <label>MRR</label>
+        <div class="input-row">
+          <span class="input-prefix">$</span>
+          <input type="number" id="mrr" value="8500" min="0" step="100" oninput="recalculate()">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>Customers</label>
+        <input type="number" id="customers" value="120" min="0" oninput="recalculate()">
+      </div>
+
+      <div class="input-group">
+        <label>New Customers</label>
+        <input type="number" id="newCustomers" value="18" min="0" oninput="recalculate()">
+      </div>
+
+      <div class="input-group">
+        <label>Churned Customers</label>
+        <input type="number" id="churnedCustomers" value="4" min="0" oninput="recalculate()">
+      </div>
+
+      <div class="input-group">
+        <label>Expansion MRR (NRR)</label>
+        <div class="input-row">
+          <span class="input-prefix">$</span>
+          <input type="number" id="expansionMrr" value="400" min="0" step="50" oninput="recalculate()">
+        </div>
+      </div>
+
+      <hr class="section-divider">
+
+      <div class="input-group">
+        <label>S&amp;M Spend (CAC)</label>
+        <div class="input-row">
+          <span class="input-prefix">$</span>
+          <input type="number" id="marketingSpend" value="2000" min="0" step="100" oninput="recalculate()">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>OpEx</label>
+        <div class="input-row">
+          <span class="input-prefix">$</span>
+          <input type="number" id="opCosts" value="6000" min="0" step="100" oninput="recalculate()">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>Cash</label>
+        <div class="input-row">
+          <span class="input-prefix">$</span>
+          <input type="number" id="cash" value="45000" min="0" step="1000" oninput="recalculate()">
+        </div>
+      </div>
+
+      <hr class="section-divider">
+
+      <div class="input-group">
+        <label>ACL</label>
+        <div class="input-row">
+          <input type="number" id="contractLength" value="8" min="1" max="60" oninput="recalculate()">
+          <span class="input-suffix">months</span>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>GM</label>
+        <div class="input-row">
+          <input type="range" class="input-slider" id="grossMargin" value="82" min="0" max="100" oninput="recalculate(); document.getElementById('gmDisplay').textContent = this.value + '%'">
+          <span class="input-suffix" id="gmDisplay">82%</span>
+        </div>
+      </div>
+
+      <hr class="section-divider">
+
+      <div class="actions">
+        <button class="btn" onclick="saveScenario()">Save scenario</button>
+        <div class="save-status" id="saveStatus"></div>
+        <input type="text" id="shareName" placeholder="Your name">
+        <button class="btn secondary" onclick="shareResults()">Share your results</button>
+        <div class="share-link" id="shareLink"></div>
+      </div>
+    </div>
+
+    <div class="results-panel">
+      <div class="metrics-grid" id="metricsGrid"></div>
+
+      <div class="chart-card">
+        <h3>12-Month Revenue vs Costs Projection</h3>
+        <div class="chart-container">
+          <div class="chart-bar-group" id="projectionChart"></div>
+        </div>
+      </div>
+
+      <div class="health-card">
+        <h3>SaaS Health Check</h3>
+        <div id="healthChecks"></div>
+      </div>
+
+      <div class="cta-card">
+        <h3>Track these metrics automatically</h3>
+        <p>Spark connects to your billing and keeps every number on this page up to date.</p>
+        <a href="https://spark-app-7f3a-preview.lovable.app">Start free trial</a>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    &copy; 2026 Spark
+  </footer>
+
+  <script>
+    const SPARK_PAYMENTS_KEY = 'spark_live_demo_zNgy4BHf0cb0dkOVf6tYmz9N';
+
+    const FIELDS = ['mrr','customers','newCustomers','churnedCustomers','expansionMrr','marketingSpend','opCosts','cash','contractLength','grossMargin'];
+
+    const PRESETS = {
+      early:   { mrr: 1200, customers: 28, newCustomers: 6, churnedCustomers: 2, expansionMrr: 50, marketingSpend: 500, opCosts: 3000, cash: 20000, contractLength: 4, grossMargin: 75 },
+      growing: { mrr: 8500, customers: 120, newCustomers: 18, churnedCustomers: 4, expansionMrr: 400, marketingSpend: 2000, opCosts: 6000, cash: 45000, contractLength: 8, grossMargin: 82 },
+      scaling: { mrr: 42000, customers: 580, newCustomers: 65, churnedCustomers: 12, expansionMrr: 2600, marketingSpend: 8000, opCosts: 28000, cash: 180000, contractLength: 14, grossMargin: 88 },
+    };
+
+    function loadPreset(name) {
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      if (name === 'clear') {
+        FIELDS.forEach(id => {
+          if (id !== 'grossMargin') document.getElementById(id).value = 0;
+        });
+        document.getElementById('grossMargin').value = 80;
+        document.getElementById('gmDisplay').textContent = '80%';
+      } else {
+        applyValues(PRESETS[name]);
+        event.target.classList.add('active');
+      }
+      recalculate();
+    }
+
+    function applyValues(p) {
+      Object.keys(p).forEach(k => {
+        const el = document.getElementById(k);
+        if (!el) return;
+        el.value = p[k];
+        if (k === 'grossMargin') document.getElementById('gmDisplay').textContent = p[k] + '%';
+      });
+    }
+
+    function currentValues() {
+      const out = {};
+      FIELDS.forEach(id => { out[id] = val(id); });
+      return out;
+    }
+
+    function val(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+    function recalculate() {
+      const mrr = val('mrr');
+      const customers = val('customers');
+      const newCust = val('newCustomers');
+      const churnedCust = val('churnedCustomers');
+      const expansionMrr = val('expansionMrr');
+      const marketingSpend = val('marketingSpend');
+      const opCosts = val('opCosts');
+      const cash = val('cash');
+      const contractLength = val('contractLength');
+      const grossMargin = val('grossMargin') / 100;
+
+      const arpu = customers > 0 ? mrr / customers : 0;
+      const churnRate = customers > 0 ? (churnedCust / customers) * 100 : 0;
+      const netNewMrr = (newCust * arpu) - (churnedCust * arpu) + expansionMrr;
+      const arr = mrr * 12;
+
+      const lifetime = Math.max(contractLength, 1 / (churnRate / 100));
+      const ltv = arpu * lifetime * grossMargin;
+
+      const cac = newCust >= 3 ? marketingSpend / newCust : null;
+      const ltvCac = (cac && cac > 0) ? ltv / cac : null;
+      const cacPayback = (cac && arpu > 0 && grossMargin > 0) ? cac / (arpu * grossMargin) : null;
+
+      const netBurn = opCosts - mrr;
+      const runway = cash / netBurn;
+
+      const lostMrr = churnedCust * arpu;
+      const newMrr = newCust * arpu;
+      const quickRatio = lostMrr > 0 ? (newMrr + expansionMrr) / lostMrr : (newMrr > 0 ? 99 : 0);
+      const nrr = mrr > 0 ? ((mrr - lostMrr + expansionMrr) / mrr) * 100 : 0;
+
+      renderMetrics({ mrr, arr, arpu, churnRate, ltv, cac, ltvCac, cacPayback, netBurn, runway, quickRatio, netNewMrr, grossMargin, nrr });
+      renderChart(mrr, netNewMrr, opCosts);
+      renderHealth({ churnRate, ltvCac, cacPayback, runway, quickRatio, grossMargin: grossMargin * 100, nrr });
+    }
+
+    function fmt(n, prefix, suffix) {
+      if (n === null || n === undefined || isNaN(n)) return 'N/A';
+      prefix = prefix || '';
+      suffix = suffix || '';
+      if (Math.abs(n) >= 1000000) return prefix + (n / 1000000).toFixed(1) + 'M' + suffix;
+      if (Math.abs(n) >= 1000) return prefix + (n / 1000).toFixed(1) + 'k' + suffix;
+      if (n % 1 !== 0) return prefix + n.toFixed(1) + suffix;
+      return prefix + n.toString() + suffix;
+    }
+
+    function renderMetrics(m) {
+      const cards = [
+        { label: 'MRR', value: fmt(m.mrr, '$'), sub: `ARR: ${fmt(m.arr, '$')}`, color: '' },
+        { label: 'ARPU', value: fmt(m.arpu, '$'), sub: 'Per customer per month', color: '' },
+        { label: 'Churn', value: fmt(m.churnRate, '', '%'), sub: `${fmt(m.netNewMrr, '$')} net new MRR`, color: m.churnRate > 7 ? 'danger' : m.churnRate > 4 ? 'warning' : 'good' },
+        { label: 'LTV', value: fmt(m.ltv, '$'), sub: `@ ${(m.grossMargin * 100).toFixed(0)}% GM`, color: '' },
+        { label: 'CAC', value: m.cac !== null ? fmt(m.cac, '$') : 'N/A', sub: m.cac !== null ? `${fmt(m.cacPayback, '', ' mo')} payback` : 'Need 3+ new customers', color: '' },
+        { label: 'LTV:CAC', value: m.ltvCac !== null ? fmt(m.ltvCac, '', 'x') : 'N/A', sub: m.ltvCac !== null ? (m.ltvCac >= 3 ? 'Healthy ratio' : 'Below 3x target') : '', color: m.ltvCac === null ? '' : m.ltvCac >= 3 ? 'good' : m.ltvCac >= 1.5 ? 'warning' : 'danger' },
+        { label: 'NRR', value: fmt(m.nrr, '', '%'), sub: 'Monthly', color: m.nrr >= 100 ? 'good' : m.nrr >= 95 ? 'warning' : 'danger' },
+        { label: 'Quick Ratio', value: m.quickRatio >= 99 ? '&#8734;' : fmt(m.quickRatio, '', 'x'), sub: 'New + expansion / lost', color: m.quickRatio >= 4 ? 'good' : m.quickRatio >= 2 ? 'warning' : 'danger' },
+        { label: 'Runway', value: fmt(m.runway, '', ' mo'), sub: `${fmt(m.netBurn, '$')}/mo burn`, color: m.runway > 12 ? 'good' : m.runway > 6 ? 'warning' : 'danger' },
+      ];
+
+      document.getElementById('metricsGrid').innerHTML = cards.map(c => `
+        <div class="metric-card">
+          <div class="label">${c.label}</div>
+          <div class="value ${c.color}">${c.value}</div>
+          <div class="subtext">${c.sub}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderChart(currentMrr, netNewMrr, monthlyCosts) {
+      const months = ['Now','M2','M3','M4','M5','M6','M7','M8','M9','M10','M11','M12'];
+      const maxVal = Math.max(currentMrr * 3, monthlyCosts * 1.5, 1);
+
+      const bars = months.map((label, i) => {
+        const projectedMrr = currentMrr + (netNewMrr * i);
+        const revenue = Math.max(0, projectedMrr);
+        const revHeight = (revenue / maxVal) * 180;
+        const costHeight = (monthlyCosts / maxVal) * 180;
+
+        return `
+          <div class="chart-bar-wrapper">
+            <div class="chart-bar-value">${fmt(revenue, '$')}</div>
+            <div style="display:flex;gap:2px;align-items:flex-end;height:180px;">
+              <div class="chart-bar revenue" style="height:${revHeight}px"></div>
+              <div class="chart-bar cost" style="height:${costHeight}px"></div>
+            </div>
+            <div class="chart-bar-label">${label}</div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('projectionChart').innerHTML = bars;
+    }
+
+    function renderHealth(m) {
+      const checks = [
+        {
+          label: 'Churn',
+          status: m.churnRate <= 3 ? 'good' : m.churnRate <= 6 ? 'warning' : 'danger',
+          text: m.churnRate <= 3 ? `${m.churnRate.toFixed(1)}% — Excellent` : m.churnRate <= 6 ? `${m.churnRate.toFixed(1)}% — Watch closely` : `${m.churnRate.toFixed(1)}% — Needs attention`,
+        },
+        {
+          label: 'LTV:CAC',
+          status: m.ltvCac === null ? 'warning' : m.ltvCac >= 3 ? 'good' : m.ltvCac >= 1.5 ? 'warning' : 'danger',
+          text: m.ltvCac === null ? 'Need more data' : m.ltvCac >= 3 ? `${m.ltvCac.toFixed(1)}x — Healthy` : m.ltvCac >= 1.5 ? `${m.ltvCac.toFixed(1)}x — Improving` : `${m.ltvCac.toFixed(1)}x — Unsustainable`,
+        },
+        {
+          label: 'CAC Payback',
+          status: m.cacPayback === null ? 'warning' : m.cacPayback <= 6 ? 'good' : m.cacPayback <= 12 ? 'warning' : 'danger',
+          text: m.cacPayback === null ? 'Need more data' : m.cacPayback <= 6 ? `${m.cacPayback.toFixed(1)} months — Great` : m.cacPayback <= 12 ? `${m.cacPayback.toFixed(1)} months — Acceptable` : `${m.cacPayback.toFixed(1)} months — Too long`,
+        },
+        {
+          label: 'NRR',
+          status: m.nrr >= 100 ? 'good' : m.nrr >= 95 ? 'warning' : 'danger',
+          text: m.nrr >= 100 ? `${m.nrr.toFixed(1)}% — Expanding` : m.nrr >= 95 ? `${m.nrr.toFixed(1)}% — Flat` : `${m.nrr.toFixed(1)}% — Leaking`,
+        },
+        {
+          label: 'Quick Ratio',
+          status: m.quickRatio >= 4 ? 'good' : m.quickRatio >= 2 ? 'warning' : 'danger',
+          text: m.quickRatio >= 99 ? 'No churn — Perfect' : m.quickRatio >= 4 ? `${m.quickRatio.toFixed(1)}x — Strong growth` : m.quickRatio >= 2 ? `${m.quickRatio.toFixed(1)}x — Moderate` : `${m.quickRatio.toFixed(1)}x — Weak growth`,
+        },
+        {
+          label: 'GM',
+          status: m.grossMargin >= 80 ? 'good' : m.grossMargin >= 60 ? 'warning' : 'danger',
+          text: m.grossMargin >= 80 ? `${m.grossMargin.toFixed(0)}% — SaaS-grade` : m.grossMargin >= 60 ? `${m.grossMargin.toFixed(0)}% — Improve infra costs` : `${m.grossMargin.toFixed(0)}% — Not SaaS economics`,
+        },
+        {
+          label: 'Runway',
+          status: m.runway > 12 ? 'good' : m.runway > 6 ? 'warning' : 'danger',
+          text: m.runway > 12 ? `${m.runway.toFixed(0)} months — Comfortable` : m.runway > 6 ? `${m.runway.toFixed(0)} months — Start planning` : `${m.runway.toFixed(0)} months — Urgent`,
+        },
+      ];
+
+      document.getElementById('healthChecks').innerHTML = checks.map(c => `
+        <div class="health-item">
+          <span class="check-label">${c.label}</span>
+          <span class="check-status status-${c.status}">${c.text}</span>
+        </div>
+      `).join('');
+    }
+
+    function saveScenario() {
+      localStorage.setItem('spark-scenario', JSON.stringify(currentValues()));
+      document.getElementById('saveStatus').textContent = 'Scenario saved ✓';
+    }
+
+    function loadScenario() {
+      const saved = localStorage.getItem('spark_scenario');
+      if (saved) applyValues(JSON.parse(saved));
+    }
+
+    function shareResults() {
+      const params = new URLSearchParams(currentValues());
+      params.set('name', document.getElementById('shareName').value || 'Someone');
+      const link = location.origin + location.pathname + '?' + params.toString();
+      document.getElementById('shareLink').textContent = link;
+      if (navigator.clipboard) navigator.clipboard.writeText(link);
+    }
+
+    function loadShared() {
+      const params = new URLSearchParams(location.search);
+      if (!params.has('name')) return;
+      const shared = {};
+      FIELDS.forEach(id => { if (params.has(id)) shared[id] = params.get(id); });
+      applyValues(shared);
+      const banner = document.getElementById('sharedBanner');
+      banner.innerHTML = `<strong>${params.get('name')}</strong> shared their Spark numbers with you.`;
+      banner.style.display = 'block';
+    }
+
+    async function startCheckout(plan) {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SPARK_PAYMENTS_KEY },
+        body: JSON.stringify({ plan, metrics: currentValues() }),
+      });
+      const data = await res.json();
+      location.href = data.url;
+    }
+
+    loadScenario();
+    loadShared();
+    recalculate();
+  </script>
+</body>
+</html>
